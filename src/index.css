@@ -1,0 +1,94 @@
+@import "leaflet/dist/leaflet.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  overscroll-behavior: none;
+}
+
+body {
+  @apply bg-void-950 text-slate-100 font-display antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Leaflet : on force le thème sombre du fond de carte pour rester cohérent
+   avec le HUD, quel que soit le fournisseur de tuiles choisi. */
+.leaflet-container {
+  background: #080b12 !important;
+  font-family: "JetBrains Mono", monospace;
+}
+
+.leaflet-tile-pane {
+  filter: saturate(1.15) brightness(0.85) contrast(1.08);
+}
+
+.leaflet-control-attribution {
+  background: rgba(5, 7, 16, 0.6) !important;
+  color: rgba(148, 163, 184, 0.6) !important;
+  font-size: 9px !important;
+}
+.leaflet-control-attribution a {
+  color: rgba(94, 234, 212, 0.7) !important;
+}
+
+.leaflet-control-zoom {
+  display: none !important;
+}
+
+/* Panneau HUD : bordure fine lumineuse + coin taillé façon interface RPG */
+.hud-panel {
+  @apply bg-void-800/80 backdrop-blur-md border border-signal-500/20 shadow-hud;
+  clip-path: polygon(
+    0 8px,
+    8px 0,
+    100% 0,
+    100% calc(100% - 8px),
+    calc(100% - 8px) 100%,
+    0 100%
+  );
+}
+
+.hud-divider {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(94, 234, 212, 0.4),
+    transparent
+  );
+  height: 1px;
+}
+
+.text-glow {
+  text-shadow: 0 0 12px rgba(34, 211, 238, 0.55);
+}
+
+/* Scrollbars discrètes pour les panneaux HUD */
+.hud-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.hud-scroll::-webkit-scrollbar-thumb {
+  background: rgba(94, 234, 212, 0.3);
+  border-radius: 4px;
+}
+.hud-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
