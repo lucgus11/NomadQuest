@@ -39,6 +39,9 @@ const DEFAULT_FOG_RADIUS = 30;
 /** Un saut GPS plus grand que ça en moins de 3s est considéré comme un
  * artefact de mesure plutôt qu'un déplacement réel. */
 const MAX_PLAUSIBLE_JUMP_M = 120;
+/** Au-delà de cette précision (m), on ne fait plus confiance au signal pour
+ * révéler du brouillard ou compter de la distance (sauf tout premier fix). */
+const ACCURACY_REVEAL_THRESHOLD_M = 100;
 
 interface GameState {
   ready: boolean;
@@ -53,6 +56,7 @@ interface GameState {
 
   lastKnownPosition: LatLng | null;
   lastKnownHeading: number | null;
+  lastKnownAccuracy: number | null;
 
   pendingAchievements: AchievementDefinition[];
   lastReward: { chestId: string; artifactId: string } | null;
@@ -100,6 +104,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   lastKnownPosition: null,
   lastKnownHeading: null,
+  lastKnownAccuracy: null,
 
   pendingAchievements: [],
   lastReward: null,
@@ -128,14 +133,23 @@ export const useGameStore = create<GameState>((set, get) => ({
   setFogRadius: (m) => set({ fogRadiusMeters: m }),
   setHeading: (heading) => set({ lastKnownHeading: heading }),
 
-  recordPosition: async (pos, timestampMs, _accuracy) => {
+  recordPosition: async (pos, timestampMs, accuracy) => {
     const state = get();
     const prevStats = state.stats;
     const now = new Date(timestampMs);
+    const isFirstFix = prevStats.lastPosition === null;
+
+    // Précision suffisante pour faire confiance à la mesure (distance, brouillard).
+    // Le tout premier signal est toujours accepté pour "amorcer" la carte, même
+    // imprécis (sans quoi certains appareils/navigateurs — GPS faible, PC de
+    // bureau — resteraient bloqués sur un écran de brouillard sans jamais se
+    // centrer ni rien révéler).
+    const accuracyOk = accuracy === null || accuracy <= ACCURACY_REVEAL_THRESHOLD_M;
+    const canTrustFix = isFirstFix || accuracyOk;
 
     // --- 1. Distance parcourue (avec filtre anti-saut GPS) ---
     let deltaMeters = 0;
-    if (prevStats.lastPosition && prevStats.lastTimestamp) {
+    if (prevStats.lastPosition && prevStats.lastTimestamp && accuracyOk) {
       const d = haversineDistance(prevStats.lastPosition, pos);
       const dt = (timestampMs - prevStats.lastTimestamp) / 1000;
       const plausible =
@@ -156,8 +170,12 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
 
     // --- 2. Dissipation du brouillard ---
-    const candidateCells = cellsInRadius(pos, state.fogRadiusMeters);
+    // Au premier signal, on révèle un peu plus large que le rayon habituel
+    // pour donner tout de suite un aperçu de la carte réelle autour du joueur.
+    const revealRadius = isFirstFix ? Math.max(state.fogRadiusMeters, 50) : state.fogRadiusMeters;
+    const candidateCells = canTrustFix ? cellsInRadius(pos, revealRadius) : [];
     const newCells: FogCell[] = candidateCells.filter(
+
       (c) => !state.fogCellKeys.has(c.key)
     );
 
@@ -208,6 +226,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     set({
       lastKnownPosition: pos,
+      lastKnownAccuracy: accuracy,
       fogCellKeys: nextFogKeys,
       chests: nextChests,
       stats: nextStats,
@@ -295,6 +314,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       unlockedAchievementIds: new Set(),
       stats: DEFAULT_STATS,
       lastKnownPosition: null,
+      lastKnownAccuracy: null,
       pendingAchievements: [],
       lastReward: null,
     });
