@@ -1,14 +1,15 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 import type {
-  ChestNode,
   FogCell,
   InventoryItem,
+  OpenedChestRecord,
   PlayerStats,
+  RoadTileCache,
   UnlockedAchievement,
 } from "@/types";
 
 const DB_NAME = "nomadquest-db";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 interface NomadQuestDB extends DBSchema {
   fog: {
@@ -19,10 +20,19 @@ interface NomadQuestDB extends DBSchema {
     key: string;
     value: InventoryItem;
   };
+  /** @deprecated conservé pour compatibilité de migration ascendante avec la
+   * v1 (coffres non ouverts persistés) — plus alimenté depuis la v2. */
   chests: {
     key: string;
-    value: ChestNode;
-    indexes: { "by-opened": number };
+    value: unknown;
+  };
+  openedChests: {
+    key: string;
+    value: OpenedChestRecord;
+  };
+  roadTiles: {
+    key: string;
+    value: RoadTileCache;
   };
   achievements: {
     key: string;
@@ -47,8 +57,13 @@ export function getDB(): Promise<IDBPDatabase<NomadQuestDB>> {
           db.createObjectStore("inventory", { keyPath: "uid" });
         }
         if (!db.objectStoreNames.contains("chests")) {
-          const store = db.createObjectStore("chests", { keyPath: "id" });
-          store.createIndex("by-opened", "openedAt");
+          db.createObjectStore("chests", { keyPath: "id" });
+        }
+        if (!db.objectStoreNames.contains("openedChests")) {
+          db.createObjectStore("openedChests", { keyPath: "id" });
+        }
+        if (!db.objectStoreNames.contains("roadTiles")) {
+          db.createObjectStore("roadTiles", { keyPath: "key" });
         }
         if (!db.objectStoreNames.contains("achievements")) {
           db.createObjectStore("achievements", { keyPath: "id" });
@@ -89,20 +104,26 @@ export async function loadInventory(): Promise<InventoryItem[]> {
 
 /* -------------------------------- Coffres -------------------------------- */
 
-export async function saveChest(chest: ChestNode): Promise<void> {
+export async function recordOpenedChest(record: OpenedChestRecord): Promise<void> {
   const db = await getDB();
-  await db.put("chests", chest);
+  await db.put("openedChests", record);
 }
 
-export async function saveChests(chests: ChestNode[]): Promise<void> {
+export async function loadOpenedChests(): Promise<OpenedChestRecord[]> {
   const db = await getDB();
-  const tx = db.transaction("chests", "readwrite");
-  await Promise.all([...chests.map((c) => tx.store.put(c)), tx.done]);
+  return db.getAll("openedChests");
 }
 
-export async function loadAllChests(): Promise<ChestNode[]> {
+/* ------------------------------ Cache routier ----------------------------- */
+
+export async function getRoadTile(key: string): Promise<RoadTileCache | undefined> {
   const db = await getDB();
-  return db.getAll("chests");
+  return db.get("roadTiles", key);
+}
+
+export async function saveRoadTile(tile: RoadTileCache): Promise<void> {
+  const db = await getDB();
+  await db.put("roadTiles", tile);
 }
 
 /* ----------------------------- Succès (achv) ----------------------------- */
@@ -141,19 +162,23 @@ export async function wipeAllData(): Promise<void> {
     db.clear("fog"),
     db.clear("inventory"),
     db.clear("chests"),
+    db.clear("openedChests"),
     db.clear("achievements"),
     db.clear("meta"),
+    // On conserve volontairement le cache routier (roadTiles) lors d'une
+    // réinitialisation de la progression : ce ne sont que des données
+    // publiques (OSM), pas de la progression du joueur.
   ]);
 }
 
 export async function exportAllData() {
   const db = await getDB();
-  const [fog, inventory, chests, achievements, stats] = await Promise.all([
+  const [fog, inventory, openedChests, achievements, stats] = await Promise.all([
     db.getAll("fog"),
     db.getAll("inventory"),
-    db.getAll("chests"),
+    db.getAll("openedChests"),
     db.getAll("achievements"),
     db.get("meta", STATS_KEY),
   ]);
-  return { fog, inventory, chests, achievements, stats, exportedAt: Date.now() };
+  return { fog, inventory, openedChests, achievements, stats, exportedAt: Date.now() };
 }
