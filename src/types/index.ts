@@ -34,14 +34,45 @@ export interface InventoryItem {
 
 export type ChestKind = "commun" | "rare" | "légendaire";
 
+/** Un coffre tel qu'affiché à l'écran : généré à la volée de façon
+ * déterministe (voir lib/chestField.ts) — non persisté tant qu'il n'est pas
+ * ouvert. Son `id` est stable (dérivé de sa cellule de grille), donc il
+ * réapparaît identique si on quitte puis revient dans la zone. */
 export interface ChestNode {
   id: string;
   position: LatLng;
   kind: ChestKind;
-  createdAt: number;
   openedAt: number | null;
   rewardArtifactId: string | null;
 }
+
+/** Seul ce qui est *ouvert* est persisté en base — le reste est régénéré
+ * procéduralement à chaque affichage, ce qui permet d'avoir des coffres
+ * "partout dans le monde" sans stocker des millions d'entrées. */
+export interface OpenedChestRecord {
+  id: string;
+  kind: ChestKind;
+  rewardArtifactId: string;
+  openedAt: number;
+  position: LatLng;
+}
+
+/** Segment de route/chemin public (OpenStreetMap), utilisé pour n'ancrer les
+ * coffres que sur la voirie publique (routes, sentiers, chemins forestiers)
+ * et jamais en pleine propriété privée. */
+export interface RoadSegment {
+  aLat: number;
+  aLng: number;
+  bLat: number;
+  bLng: number;
+}
+
+export interface RoadTileCache {
+  key: string;
+  fetchedAt: number;
+  segments: RoadSegment[];
+}
+
 
 export interface AchievementDefinition {
   id: string;
