@@ -72,6 +72,12 @@ export function SettingsPanel() {
           l'application ou vider les données du site effacera définitivement votre progression — pensez à
           exporter une sauvegarde régulièrement.
         </p>
+        <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+          Seule exception : pour garantir que les coffres n'apparaissent jamais en pleine propriété privée,
+          leur position est ancrée sur les routes et chemins publics (données OpenStreetMap). La première
+          fois que vous explorez une nouvelle zone, une requête ponctuelle et anonyme récupère ce tracé
+          public ; il est ensuite mis en cache localement et réutilisable hors-ligne.
+        </p>
       </section>
 
       <section className="hud-panel p-4 mb-4">

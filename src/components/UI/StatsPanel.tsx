@@ -42,13 +42,13 @@ export function StatsPanel() {
   const fogCellKeys = useGameStore((s) => s.fogCellKeys);
   const unlockedIds = useGameStore((s) => s.unlockedAchievementIds);
   const inventory = useGameStore((s) => s.inventory);
-  const chests = useGameStore((s) => s.chests);
+  const openedChestIds = useGameStore((s) => s.openedChestIds);
 
   const cellCount = fogCellKeys.size;
   const zonePct = localZonePercent(cellCount);
   const worldPct = worldPercent(cellCount);
   const { level, progressRatio, nextLevelXp, currentLevelXp } = xpProgress(stats.xp);
-  const openedChests = chests.filter((c) => c.openedAt !== null).length;
+  const openedChests = openedChestIds.size;
 
   return (
     <div className="h-full overflow-y-auto hud-scroll px-4 pt-[calc(env(safe-area-inset-top)+16px)] pb-28">
