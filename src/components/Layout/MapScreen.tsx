@@ -14,6 +14,8 @@ export function MapScreen() {
   const recordPosition = useGameStore((s) => s.recordPosition);
   const stats = useGameStore((s) => s.stats);
   const chests = useGameStore((s) => s.chests);
+  const chestsLoading = useGameStore((s) => s.chestsLoading);
+  const roadDataAvailable = useGameStore((s) => s.roadDataAvailable);
   const lastReward = useGameStore((s) => s.lastReward);
   const clearLastReward = useGameStore((s) => s.clearLastReward);
 
@@ -23,8 +25,8 @@ export function MapScreen() {
 
   const geo = useGeolocation({
     enabled: trackingEnabled,
-    onPosition: (pos, ts, accuracy) => {
-      void recordPosition(pos, ts, accuracy);
+    onPosition: (pos, ts, accuracy, speedKmh) => {
+      void recordPosition(pos, ts, accuracy, speedKmh);
     },
   });
 
@@ -111,9 +113,18 @@ export function MapScreen() {
       {lastReward && (
         <RewardModal
           artifactId={lastReward.artifactId}
-          chestKind={chests.find((c) => c.id === lastReward.chestId)?.kind ?? "commun"}
+          chestKind={lastReward.kind}
           onClose={clearLastReward}
         />
+      )}
+
+      {roadDataAvailable === false && !chestsLoading && (
+        <div className="absolute bottom-[104px] inset-x-0 z-[1100] flex justify-center px-4 pointer-events-none">
+          <div className="hud-panel px-3 py-2 text-[11px] font-mono text-slate-400 text-center max-w-xs">
+            Aucun chemin public connu ici pour l'instant — connectez-vous à internet une fois pour
+            découvrir les coffres de cette zone (mis en cache ensuite, hors-ligne).
+          </div>
+        </div>
       )}
     </div>
   );
