@@ -13,7 +13,12 @@ export interface GeoState {
 
 interface Options {
   enabled: boolean;
-  onPosition?: (pos: LatLng, timestamp: number, accuracy: number | null) => void;
+  onPosition?: (
+    pos: LatLng,
+    timestamp: number,
+    accuracy: number | null,
+    speedKmh: number | null
+  ) => void;
 }
 
 const GEO_OPTIONS: PositionOptions = {
@@ -61,17 +66,18 @@ export function useGeolocation({ enabled, onPosition }: Options): GeoState {
       (pos) => {
         const { latitude, longitude, accuracy, heading, speed } = pos.coords;
         const latLng: LatLng = { lat: latitude, lng: longitude };
+        const speedKmh = speed !== null && speed >= 0 ? speed * 3.6 : null;
         setState((s) => ({
           ...s,
           position: latLng,
           accuracy,
           heading: heading ?? s.heading,
-          speedKmh: speed !== null ? speed * 3.6 : s.speedKmh,
+          speedKmh: speedKmh ?? s.speedKmh,
           isTracking: true,
           error: null,
           permission: "granted",
         }));
-        onPositionRef.current?.(latLng, pos.timestamp, accuracy);
+        onPositionRef.current?.(latLng, pos.timestamp, accuracy, speedKmh);
       },
       (err) => {
         setState((s) => ({
