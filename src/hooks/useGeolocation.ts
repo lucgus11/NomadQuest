@@ -22,8 +22,10 @@ const GEO_OPTIONS: PositionOptions = {
   timeout: 15000,
 };
 
-/** Filtre les positions manifestement aberrantes (précision GPS trop faible). */
-const MAX_ACCEPTABLE_ACCURACY_M = 60;
+/** Au-delà de cette précision, on prévient l'utilisateur (mais on ne bloque
+ * plus silencieusement la position : mieux vaut un signal imprécis affiché
+ * avec un avertissement qu'un écran qui semble cassé). */
+const POOR_ACCURACY_WARNING_M = 100;
 
 export function useGeolocation({ enabled, onPosition }: Options): GeoState {
   const [state, setState] = useState<GeoState>({
@@ -58,10 +60,6 @@ export function useGeolocation({ enabled, onPosition }: Options): GeoState {
     const id = navigator.geolocation.watchPosition(
       (pos) => {
         const { latitude, longitude, accuracy, heading, speed } = pos.coords;
-        if (accuracy > MAX_ACCEPTABLE_ACCURACY_M) {
-          setState((s) => ({ ...s, accuracy, isTracking: true, error: null }));
-          return;
-        }
         const latLng: LatLng = { lat: latitude, lng: longitude };
         setState((s) => ({
           ...s,
@@ -97,6 +95,8 @@ export function useGeolocation({ enabled, onPosition }: Options): GeoState {
 
   return state;
 }
+
+export { POOR_ACCURACY_WARNING_M };
 
 /** Demande explicitement la permission (utile pour un bouton "Activer le GPS"). */
 export function requestGeoPermissionOnce(): Promise<GeolocationPosition> {
