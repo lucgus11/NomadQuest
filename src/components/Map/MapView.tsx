@@ -34,6 +34,7 @@ export function MapView({
   const accuracyCircleRef = useRef<L.Circle | null>(null);
   const chestMarkersRef = useRef<Map<string, L.Marker>>(new Map());
   const hasCenteredRef = useRef(false);
+  const chestRefreshTimeoutRef = useRef<number | null>(null);
 
   const position = useGameStore((s) => s.lastKnownPosition);
   const chests = useGameStore((s) => s.chests);
@@ -73,12 +74,33 @@ export function MapView({
       drawFog(canvasRef.current, map, { fogCellKeys: useGameStore.getState().fogCellKeys });
     };
 
+    // Régénère la liste de coffres visibles (procédurale + ancrée sur la
+    // voirie publique) à chaque déplacement/zoom, avec un léger anti-rebond
+    // pour ne pas spammer le cache/le réseau routier pendant un pan continu.
+    const MIN_ZOOM_FOR_CHESTS = 15;
+    const scheduleChestRefresh = () => {
+      if (chestRefreshTimeoutRef.current) window.clearTimeout(chestRefreshTimeoutRef.current);
+      chestRefreshTimeoutRef.current = window.setTimeout(() => {
+        if (map.getZoom() < MIN_ZOOM_FOR_CHESTS) return;
+        const b = map.getBounds();
+        void useGameStore.getState().refreshChestsForBounds({
+          north: b.getNorth(),
+          south: b.getSouth(),
+          east: b.getEast(),
+          west: b.getWest(),
+        });
+      }, 700);
+    };
+
     map.on("move zoom viewreset resize", redraw);
+    map.on("moveend zoomend", scheduleChestRefresh);
     map.on("dragstart", onMapDragged);
     mapRef.current = map;
     redraw();
+    scheduleChestRefresh();
 
     return () => {
+      if (chestRefreshTimeoutRef.current) window.clearTimeout(chestRefreshTimeoutRef.current);
       map.off();
       map.remove();
       mapRef.current = null;
