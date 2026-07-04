@@ -1,6 +1,11 @@
-import { BatteryCharging, Compass, Crosshair, Radar, Satellite, SatelliteDish } from "lucide-react";
+import { AlertTriangle, BatteryCharging, Compass, Crosshair, Radar, Satellite, SatelliteDish } from "lucide-react";
 import { xpProgress } from "@/lib/xp";
 import { formatDistance } from "@/lib/geoUtils";
+
+/** Au-delà de cette précision (m), le signal est jugé trop imprécis pour
+ * exploiter le brouillard / la distance de façon fiable — on prévient
+ * l'utilisateur plutôt que de le laisser croire que l'app est cassée. */
+const POOR_ACCURACY_THRESHOLD_M = 100;
 
 interface RadarHUDProps {
   xp: number;
@@ -26,6 +31,7 @@ export function RadarHUD({
   onToggleWakeLock,
 }: RadarHUDProps) {
   const { level, progressRatio } = xpProgress(xp);
+  const poorAccuracy = gpsAccuracy !== null && gpsAccuracy > POOR_ACCURACY_THRESHOLD_M;
 
   return (
     <div className="fixed top-0 inset-x-0 z-[1100] pt-[env(safe-area-inset-top)]">
@@ -88,13 +94,22 @@ export function RadarHUD({
           </div>
         </div>
 
-        {isTracking && (
-          <div className="mt-2 hud-divider" />
-        )}
+        {isTracking && <div className="mt-2 hud-divider" />}
         {isTracking && (
           <div className="mt-1.5 flex items-center justify-between text-[10px] font-mono text-slate-500">
-            <span>SIGNAL GPS {gpsAccuracy ? `±${Math.round(gpsAccuracy)}m` : "…"}</span>
+            <span className={poorAccuracy ? "text-danger-500" : ""}>
+              SIGNAL GPS {gpsAccuracy ? `±${Math.round(gpsAccuracy)}m` : "…"}
+            </span>
             <span className="text-signal-500/80 animate-pulse">● SUIVI ACTIF</span>
+          </div>
+        )}
+        {isTracking && poorAccuracy && (
+          <div className="mt-1.5 flex items-start gap-1.5 text-[10px] font-mono text-danger-500 bg-danger-500/10 border border-danger-500/30 rounded-md px-2 py-1.5">
+            <AlertTriangle size={13} className="shrink-0 mt-px" />
+            <span>
+              Signal imprécis (±{Math.round(gpsAccuracy!)}m). Le brouillard ne se dissipera pas de façon
+              fiable — sortez à l'extérieur, loin des bâtiments, ou testez sur mobile avec le GPS activé.
+            </span>
           </div>
         )}
       </div>
